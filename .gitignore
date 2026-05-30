@@ -16,14 +16,15 @@
 /public/build
 /public/hot
 /public/storage
-/storage/*.key
 /storage/app/exports
 /storage/app/private/loan-documents
 /storage/framework/views
 /storage/logs/*.log
-/storage/pail
 /database/*.sqlite
 /cookies.txt
+/dashboard_response.html
+/storage/*.key
+/storage/pail
 /vendor
 Homestead.json
 Homestead.yaml
