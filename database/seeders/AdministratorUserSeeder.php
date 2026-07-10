@@ -13,11 +13,11 @@ class AdministratorUserSeeder extends Seeder
     public function run(): void
     {
         $position = Position::query()->firstOrCreate(
-            ['code' => 'ADMIN'],
+            ['code' => 'ADMINISTRATOR'],
             [
-                'name' => 'Admin',
+                'name' => 'Administrator',
                 'approval_scope' => null,
-                'description' => 'Jabatan pengurus koperasi.',
+                'description' => 'Administrator sistem yang memiliki akses ke menu setting.',
                 'is_active' => true,
             ],
         );
@@ -41,7 +41,7 @@ class AdministratorUserSeeder extends Seeder
                 'name' => 'Administrator Koperasi',
                 'email' => 'administrator@koperasi.local',
                 'password' => Hash::make('password'),
-                'role' => 'administrator',
+                'role' => 'admin',
                 'official_id' => $official->id,
                 'position_id' => $position->id,
                 'is_active' => true,

@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class UnitUsahaInventory extends Model
 {
@@ -11,6 +13,7 @@ class UnitUsahaInventory extends Model
     protected $fillable = [
         'code',
         'name',
+        'category_id',
         'category',
         'unit',
         'stock',
@@ -26,4 +29,19 @@ class UnitUsahaInventory extends Model
         'selling_price' => 'decimal:2',
         'is_active' => 'boolean',
     ];
+
+    public function categoryRelation(): BelongsTo
+    {
+        return $this->belongsTo(UnitUsahaInventoryCategory::class, 'category_id');
+    }
+
+    public function priceHistories(): HasMany
+    {
+        return $this->hasMany(UnitUsahaInventoryPriceHistory::class, 'inventory_id');
+    }
+
+    public function categoryLabel(): string
+    {
+        return $this->categoryRelation?->name ?: (string) $this->category;
+    }
 }

@@ -3,7 +3,7 @@
 @php
     $activeItems = $inventories->where('is_active', true)->count();
     $inactiveItems = $inventories->where('is_active', false)->count();
-    $categoriesCount = $inventories->pluck('category')->filter()->unique()->count();
+    $categoriesCount = $inventoryCategories->count();
     $lowStockItems = $inventories->filter(fn ($item) => $item->stock <= $item->minimum_stock)->count();
 @endphp
 
@@ -44,13 +44,19 @@
 
                     <div class="grid gap-4 md:grid-cols-2">
                         <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">Kategori</label>
-                            <input
-                                name="category"
-                                value="{{ old('category') }}"
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Jenis Barang</label>
+                            <select
+                                name="category_id"
                                 class="w-full rounded-2xl border border-slate-300 px-4 py-3"
-                                placeholder="ATK / Bahan Baku / Konsumsi"
                             >
+                                <option value="">Pilih jenis barang</option>
+                                @foreach ($inventoryCategories as $category)
+                                    <option value="{{ $category->id }}" @selected((string) old('category_id') === (string) $category->id)>
+                                        {{ $category->name }} ({{ $category->code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="mt-2 text-xs text-slate-500">Kelola daftar jenis dari tab `Jenis Barang` agar klasifikasi inventory konsisten.</p>
                         </div>
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">Satuan</label>
@@ -82,9 +88,10 @@
                             <input
                                 name="purchase_price"
                                 value="{{ old('purchase_price', 0) }}"
-                                type="number"
-                                min="0"
-                                step="0.01"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                data-currency-input
                                 class="w-full rounded-2xl border border-slate-300 px-4 py-3"
                                 placeholder="0"
                             >
@@ -94,9 +101,10 @@
                             <input
                                 name="selling_price"
                                 value="{{ old('selling_price', 0) }}"
-                                type="number"
-                                min="0"
-                                step="0.01"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                data-currency-input
                                 class="w-full rounded-2xl border border-slate-300 px-4 py-3"
                                 placeholder="0"
                             >
@@ -192,7 +200,7 @@
                                         <tr>
                                             <td class="px-5 py-4 text-sm font-semibold text-slate-900">{{ $inventory->code }}</td>
                                             <td class="px-5 py-4 text-sm font-semibold text-slate-900">{{ $inventory->name }}</td>
-                                            <td class="px-5 py-4 text-sm text-slate-700">{{ $inventory->category }}</td>
+                                            <td class="px-5 py-4 text-sm text-slate-700">{{ $inventory->categoryLabel() ?: '-' }}</td>
                                             <td class="px-5 py-4 text-sm text-slate-700">{{ $inventory->unit }}</td>
                                             <td class="px-5 py-4 text-sm {{ $inventory->stock <= $inventory->minimum_stock ? 'font-semibold text-rose-600' : 'text-slate-700' }}">{{ number_format((int) $inventory->stock) }} / min {{ number_format((int) $inventory->minimum_stock) }}</td>
                                             <td class="px-5 py-4 text-sm text-slate-600">{{ $inventory->description ?: '-' }}</td>
@@ -233,12 +241,34 @@
             const modal = document.getElementById('master-inventory-list-modal');
             const openButton = document.getElementById('open-master-inventory-list');
             const closeButton = document.getElementById('close-master-inventory-list');
+            const currencyInputs = document.querySelectorAll('[data-currency-input]');
+
+            const normalizeCurrencyValue = (value) => String(value ?? '').replace(/[^\d]/g, '');
+            const formatCurrencyValue = (value) => {
+                const digits = normalizeCurrencyValue(value);
+                return digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+            };
 
             const toggleModal = (show) => {
                 if (!modal) return;
                 modal.classList.toggle('hidden', !show);
                 document.body.classList.toggle('overflow-hidden', show);
             };
+
+            currencyInputs.forEach((input) => {
+                input.value = formatCurrencyValue(input.value);
+                input.addEventListener('input', () => {
+                    input.value = formatCurrencyValue(input.value);
+                });
+            });
+
+            document.querySelectorAll('form').forEach((form) => {
+                form.addEventListener('submit', () => {
+                    form.querySelectorAll('[data-currency-input]').forEach((input) => {
+                        input.value = normalizeCurrencyValue(input.value);
+                    });
+                });
+            });
 
             openButton?.addEventListener('click', () => toggleModal(true));
             closeButton?.addEventListener('click', () => toggleModal(false));

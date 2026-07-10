@@ -88,18 +88,17 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return in_array($this->role, ['admin', 'administrator'], true);
     }
 
     public function isAdministrator(): bool
     {
-        return $this->role === 'administrator'
-            || $this->position?->code === 'ADMINISTRATOR';
+        return in_array($this->role, ['admin', 'administrator'], true);
     }
 
     public function isUnitUsaha(): bool
     {
-        return $this->position?->code === 'UNIT_USAHA';
+        return $this->role === 'staff';
     }
 
     public function canAccessUnitUsaha(): bool

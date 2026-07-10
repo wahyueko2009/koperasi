@@ -153,12 +153,12 @@
                     </div>
                 </a>
 
-                <a href="{{ route('simpan-pinjam.installments') }}" class="rounded-[1.75rem] border border-slate-200 bg-slate-50 px-6 py-6 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-md">
+                <a href="{{ route('simpan-pinjam.loans.konkes') }}" class="rounded-[1.75rem] border border-slate-200 bg-slate-50 px-6 py-6 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-md">
                     <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Angsuran</p>
-                        <h2 class="mt-2 text-2xl font-bold text-slate-900">Pembayaran dan Riwayat</h2>
-                        <p class="mt-2 text-sm text-slate-500">Masuk ke area angsuran untuk melihat pembayaran pinjaman dan progres cicilan anggota.</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">KONKES</p>
+                        <h2 class="mt-2 text-2xl font-bold text-slate-900">Laporan Kualitas Pinjaman</h2>
+                        <p class="mt-2 text-sm text-slate-500">Masuk ke laporan KONKES untuk melihat status lancar, DPK, dan macet berdasarkan tunggakan angsuran.</p>
                     </div>
                     <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white">
                         <i class="fas fa-arrow-right"></i>

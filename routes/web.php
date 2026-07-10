@@ -29,6 +29,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/simpan-pinjam/pinjaman/approval', [SavingLoanController::class, 'loansApprovals'])->name('simpan-pinjam.loans.approvals');
         Route::get('/simpan-pinjam/pinjaman/pencairan', [SavingLoanController::class, 'loansDisbursement'])->name('simpan-pinjam.loans.disbursement');
         Route::get('/simpan-pinjam/pinjaman/monitoring', [SavingLoanController::class, 'loansMonitoring'])->name('simpan-pinjam.loans.monitoring');
+        Route::get('/simpan-pinjam/pinjaman/laporan-konkes', [SavingLoanController::class, 'loansKonkes'])->name('simpan-pinjam.loans.konkes');
         Route::get('/simpan-pinjam/pinjaman/selesai', [SavingLoanController::class, 'loansCompleted'])->name('simpan-pinjam.loans.completed');
         Route::get('/simpan-pinjam/angsuran', [SavingLoanController::class, 'installments'])->name('simpan-pinjam.installments');
         Route::get('/simpan-pinjam/simpanan', [SavingLoanController::class, 'savings'])->name('simpan-pinjam.savings');
@@ -56,12 +57,17 @@ Route::middleware('auth')->group(function () {
                 Route::get('/', [UnitUsahaController::class, 'dashboard'])->name('dashboard');
                 Route::get('/kasir-pos', [UnitUsahaController::class, 'pos'])->name('pos');
                 Route::post('/kasir-pos', [UnitUsahaController::class, 'storePos'])->name('pos.store');
+                Route::put('/kasir-pos/{sale}', [UnitUsahaController::class, 'updatePos'])->name('pos.update');
+                Route::post('/kasir-pos/posting-harian', [UnitUsahaController::class, 'postDailySales'])->name('pos.post-daily');
                 Route::get('/stok-inventory', [UnitUsahaController::class, 'inventory'])->name('inventory');
                 Route::get('/master-produk-jasa', [UnitUsahaController::class, 'products'])->name('products');
                 Route::get('/master-produk-jasa/jasa-service', [UnitUsahaController::class, 'masterServices'])->name('master.services');
                 Route::post('/master-produk-jasa/jasa-service', [UnitUsahaController::class, 'storeMasterService'])->name('master.services.store');
                 Route::get('/master-produk-jasa/inventory-atk', [UnitUsahaController::class, 'masterInventory'])->name('master.inventory');
                 Route::post('/master-produk-jasa/inventory-atk', [UnitUsahaController::class, 'storeMasterInventory'])->name('master.inventory.store');
+                Route::post('/master-produk-jasa/inventory-atk/update-harga', [UnitUsahaController::class, 'updateInventoryPrices'])->name('master.inventory.prices.update');
+                Route::get('/master-produk-jasa/jenis-barang', [UnitUsahaController::class, 'masterInventoryCategories'])->name('master.inventory-categories');
+                Route::post('/master-produk-jasa/jenis-barang', [UnitUsahaController::class, 'storeMasterInventoryCategory'])->name('master.inventory-categories.store');
                 Route::get('/pembelian-barang-masuk', [UnitUsahaController::class, 'purchases'])->name('purchases');
                 Route::post('/pembelian-barang-masuk', [UnitUsahaController::class, 'storePurchase'])->name('purchases.store');
                 Route::get('/stock-opname', [UnitUsahaController::class, 'stockOpname'])->name('stock-opname');

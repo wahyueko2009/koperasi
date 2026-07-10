@@ -269,6 +269,7 @@ class DashboardController extends Controller
                     ['label' => 'Approval', 'route' => 'simpan-pinjam.loans.approvals'],
                     ['label' => 'Pencairan', 'route' => 'simpan-pinjam.loans.disbursement'],
                     ['label' => 'Monitoring', 'route' => 'simpan-pinjam.loans.monitoring'],
+                    ['label' => 'Laporan KONKES', 'route' => 'simpan-pinjam.loans.konkes'],
                     ['label' => 'Angsuran', 'route' => 'simpan-pinjam.installments'],
                     ['label' => 'Simpanan', 'route' => 'simpan-pinjam.savings'],
                 ],

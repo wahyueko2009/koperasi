@@ -14,9 +14,14 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ChartOfAccountSeeder::class,
             SavingTypeSeeder::class,
-            SampleDataSeeder::class,
-            AdminOfficialSeeder::class,
-            AdministratorUserSeeder::class,
         ]);
+
+        if (app()->environment(['local', 'testing'])) {
+            $this->call([
+                SampleDataSeeder::class,
+                AdminOfficialSeeder::class,
+                AdministratorUserSeeder::class,
+            ]);
+        }
     }
 }

@@ -36,7 +36,7 @@
                 <div class="border-b border-slate-100 pb-5">
                     <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Form User</p>
                     <h2 class="mt-2 text-2xl font-bold text-slate-900">Tambah User Login</h2>
-                    <p class="mt-2 text-sm leading-6 text-slate-500">Gunakan user login untuk pelaksana sistem. Otoritas bisnis tetap melekat ke jabatan dan pengurus yang sedang ditunjuk.</p>
+                    <p class="mt-2 text-sm leading-6 text-slate-500">Gunakan user login untuk pelaksana sistem. Akses menu utama ditentukan dari role user yang aktif.</p>
                 </div>
 
                 <form method="POST" action="{{ route('settings.users.store') }}" class="mt-6 space-y-4">
@@ -63,7 +63,6 @@
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">Role Sistem</label>
                             <select name="role" class="w-full rounded-2xl border border-slate-300 px-4 py-3">
-                                <option value="administrator">Administrator</option>
                                 <option value="admin">Admin</option>
                                 <option value="finance">Finance</option>
                                 <option value="staff">Staff</option>
@@ -78,7 +77,7 @@
                                     <option value="{{ $position->id }}">{{ $position->name }}</option>
                                 @endforeach
                             </select>
-                            <p class="mt-2 text-xs text-slate-500">Pilih `Unit Usaha` untuk user yang boleh mengakses modul Unit Usaha.</p>
+                            <p class="mt-2 text-xs text-slate-500">Jabatan bersifat informasi dan relasi data. Hak akses utama mengikuti role user.</p>
                         </div>
                     </div>
                     <div>
@@ -152,7 +151,6 @@
                                                     <div>
                                                         <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Role</label>
                                                         <select name="role" class="w-full rounded-2xl border border-slate-300 px-4 py-3">
-                                                            <option value="administrator" @selected($user->role === 'administrator')>Administrator</option>
                                                             <option value="admin" @selected($user->role === 'admin')>Admin</option>
                                                             <option value="finance" @selected($user->role === 'finance')>Finance</option>
                                                             <option value="staff" @selected($user->role === 'staff')>Staff</option>

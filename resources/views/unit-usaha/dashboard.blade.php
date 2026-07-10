@@ -48,7 +48,7 @@
                             <div class="flex items-start justify-between gap-4">
                                 <div>
                                     <p class="text-lg font-semibold text-slate-900">{{ $inventory->name }}</p>
-                                    <p class="mt-1 text-sm text-slate-500">{{ $inventory->category }} · {{ $inventory->code }}</p>
+                                    <p class="mt-1 text-sm text-slate-500">{{ $inventory->categoryLabel() ?: '-' }} · {{ $inventory->code }}</p>
                                 </div>
                                 <span class="rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
                                     Minimum {{ $inventory->minimum_stock }}

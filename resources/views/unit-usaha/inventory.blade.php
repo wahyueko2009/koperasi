@@ -58,7 +58,7 @@
                                     <tr>
                                         <td class="px-5 py-4 text-sm font-semibold text-slate-900">{{ $inventory->code }}</td>
                                         <td class="px-5 py-4 text-sm font-semibold text-slate-900">{{ $inventory->name }}</td>
-                                        <td class="px-5 py-4 text-sm text-slate-700">{{ $inventory->category }}</td>
+                                        <td class="px-5 py-4 text-sm text-slate-700">{{ $inventory->categoryLabel() ?: '-' }}</td>
                                         <td class="px-5 py-4 text-sm text-slate-700">{{ $inventory->unit }}</td>
                                         <td class="px-5 py-4 text-sm {{ $inventory->stock <= $inventory->minimum_stock ? 'font-semibold text-rose-600' : 'text-slate-700' }}">{{ number_format((int) $inventory->stock) }} / min {{ number_format((int) $inventory->minimum_stock) }}</td>
                                         <td class="px-5 py-4 text-sm text-slate-700">Rp {{ number_format((float) $inventory->purchase_price, 0, ',', '.') }}</td>
@@ -112,7 +112,7 @@
                     @forelse ($lowStockItems as $inventory)
                         <div class="rounded-[1.5rem] border border-rose-100 bg-rose-50/60 px-5 py-4">
                             <p class="font-semibold text-slate-900">{{ $inventory->name }}</p>
-                            <p class="mt-1 text-sm text-slate-500">{{ $inventory->category }}</p>
+                            <p class="mt-1 text-sm text-slate-500">{{ $inventory->categoryLabel() ?: '-' }}</p>
                             <div class="mt-3 flex items-center justify-between text-sm">
                                 <span class="text-slate-500">Sisa stok</span>
                                 <span class="font-semibold text-rose-700">{{ number_format((int) $inventory->stock) }} {{ $inventory->unit }}</span>

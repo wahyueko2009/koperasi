@@ -241,7 +241,7 @@ class SettingsController extends Controller
             'login' => ['required', 'string', 'max:100', 'unique:users,login'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:6'],
-            'role' => ['required', Rule::in(['administrator', 'admin', 'finance', 'staff', 'member'])],
+            'role' => ['required', Rule::in(['admin', 'finance', 'staff', 'member'])],
             'official_id' => ['nullable', 'exists:officials,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'is_active' => ['nullable', 'boolean'],
@@ -269,7 +269,7 @@ class SettingsController extends Controller
             'login' => ['required', 'string', 'max:100', Rule::unique('users', 'login')->ignore($user->id)],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:6'],
-            'role' => ['required', Rule::in(['administrator', 'admin', 'finance', 'staff', 'member'])],
+            'role' => ['required', Rule::in(['admin', 'finance', 'staff', 'member'])],
             'official_id' => ['nullable', 'exists:officials,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'is_active' => ['nullable', 'boolean'],
@@ -396,7 +396,7 @@ class SettingsController extends Controller
     private function resolveOfficialRole(Official $official): string
     {
         return match ($official->position?->code) {
-            'ADMINISTRATOR' => 'administrator',
+            'ADMINISTRATOR' => 'admin',
             'ADMIN' => 'admin',
             'FINANCE' => 'finance',
             default => 'staff',

@@ -36,6 +36,7 @@
                 'simpan-pinjam.loans.applications',
                 'simpan-pinjam.loans.approvals',
                 'simpan-pinjam.loans.monitoring',
+                'simpan-pinjam.loans.konkes',
                 'simpan-pinjam.loans.completed',
             ], true))
             ->map(fn (array $tab) => [
@@ -87,7 +88,7 @@
                 'children' => [
                     ['label' => 'Kasir / POS', 'route' => 'unit-usaha.pos'],
                     ['label' => 'Stok & Inventory', 'route' => 'unit-usaha.inventory'],
-                    ['label' => 'Master Produk/Jasa', 'route' => 'unit-usaha.master.services'],
+                    ['label' => 'Master Produk/Jasa', 'route' => 'unit-usaha.products'],
                     ['label' => 'Pembelian / Barang Masuk', 'route' => 'unit-usaha.purchases'],
                     ['label' => 'Stock Opname', 'route' => 'unit-usaha.stock-opname'],
                     ['label' => 'Laporan Unit Usaha', 'route' => 'unit-usaha.reports'],
@@ -206,7 +207,7 @@
                                         href="{{ route($child['route']) }}"
                                         class="flex items-center justify-between gap-3 rounded-xl px-11 py-2 text-sm transition {{
                                             $routeName === $child['route']
-                                                || ($child['route'] === 'unit-usaha.master.services' && str_starts_with((string) $routeName, 'unit-usaha.master.'))
+                                                || ($child['route'] === 'unit-usaha.products' && str_starts_with((string) $routeName, 'unit-usaha.master.'))
                                                 ? 'bg-white/10 text-white'
                                                 : 'text-slate-300 hover:bg-white/10 hover:text-white'
                                         }}"
@@ -266,14 +267,14 @@
                             <p class="text-sm font-semibold text-slate-800">{{ $userName }}</p>
                             <p class="text-xs text-slate-500">{{ $userRole }} · {{ $userEmail }}</p>
                         </div>
-                        <details class="relative">
+                        <details class="group relative">
                             <summary class="flex cursor-pointer list-none items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
                                 <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/10 font-bold text-accent">
                                     {{ $userInitial }}
                                 </div>
                                 <i class="fas fa-chevron-down text-xs text-slate-400"></i>
                             </summary>
-                            <div class="absolute right-0 z-20 mt-3 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                            <div class="mt-3 w-64 self-end overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                                 <div class="border-b border-slate-100 bg-slate-50 px-4 py-4">
                                     <p class="font-semibold text-slate-900">{{ $userName }}</p>
                                     <p class="mt-1 text-xs text-slate-500">{{ $userEmail }}</p>

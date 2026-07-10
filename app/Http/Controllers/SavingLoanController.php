@@ -15,6 +15,7 @@ use App\Services\SavingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class SavingLoanController extends Controller
@@ -82,6 +83,24 @@ class SavingLoanController extends Controller
         return view('saving-loan-loans', array_merge(
             $this->getSharedPageData(),
             $this->buildLoanSectionData('completed')
+        ));
+    }
+
+    public function loansKonkes(Request $request): View
+    {
+        $this->authorizeLoanSection('konkes');
+
+        $validated = $request->validate([
+            'report_date' => ['nullable', 'date'],
+        ]);
+
+        $reportDate = isset($validated['report_date'])
+            ? Carbon::parse($validated['report_date'])->startOfDay()
+            : today()->startOfDay();
+
+        return view('saving-loan-konkes', array_merge(
+            $this->getSharedPageData(),
+            $this->buildKonkesReportData($reportDate)
         ));
     }
 
@@ -502,6 +521,7 @@ class SavingLoanController extends Controller
             ['key' => 'approvals', 'label' => 'Approval', 'route' => 'simpan-pinjam.loans.approvals', 'active' => $routeName === 'simpan-pinjam.loans.approvals'],
             ['key' => 'disbursement', 'label' => 'Pencairan', 'route' => 'simpan-pinjam.loans.disbursement', 'active' => $routeName === 'simpan-pinjam.loans.disbursement'],
             ['key' => 'monitoring', 'label' => 'Monitoring', 'route' => 'simpan-pinjam.loans.monitoring', 'active' => $routeName === 'simpan-pinjam.loans.monitoring'],
+            ['key' => 'konkes', 'label' => 'Laporan KONKES', 'route' => 'simpan-pinjam.loans.konkes', 'active' => $routeName === 'simpan-pinjam.loans.konkes'],
             ['key' => 'completed', 'label' => 'Selesai', 'route' => 'simpan-pinjam.loans.completed', 'active' => $routeName === 'simpan-pinjam.loans.completed'],
         ])
             ->filter(fn (array $tab) => $this->canAccessLoanSection($tab['key']))
@@ -684,7 +704,7 @@ class SavingLoanController extends Controller
     private function canAccessLoanSection(string $section): bool
     {
         if ($this->currentUserIsAdmin()) {
-            return in_array($section, ['disbursement', 'monitoring', 'completed'], true);
+            return in_array($section, ['disbursement', 'monitoring', 'konkes', 'completed'], true);
         }
 
         if ($this->currentUserIsAdministrator()) {
@@ -692,10 +712,10 @@ class SavingLoanController extends Controller
         }
 
         if ($this->currentUserCanApproveLoans()) {
-            return in_array($section, ['approvals', 'monitoring'], true);
+            return in_array($section, ['approvals', 'monitoring', 'konkes'], true);
         }
 
-        return $section === 'monitoring';
+        return in_array($section, ['monitoring', 'konkes'], true);
     }
 
     private function defaultLoanSection(): string
@@ -800,6 +820,181 @@ class SavingLoanController extends Controller
             'rejected' => 'bg-rose-100 text-rose-700',
             default => 'bg-amber-100 text-amber-700',
         };
+    }
+
+    private function buildKonkesReportData(Carbon $reportDate): array
+    {
+        $routeName = request()->route()?->getName();
+        $headerTabs = collect([
+            ['label' => 'Pengajuan', 'route' => 'simpan-pinjam.loans.applications', 'active' => $routeName === 'simpan-pinjam.loans.applications'],
+            ['label' => 'Approval', 'route' => 'simpan-pinjam.loans.approvals', 'active' => $routeName === 'simpan-pinjam.loans.approvals'],
+            ['label' => 'Pencairan', 'route' => 'simpan-pinjam.loans.disbursement', 'active' => $routeName === 'simpan-pinjam.loans.disbursement'],
+            ['label' => 'Monitoring', 'route' => 'simpan-pinjam.loans.monitoring', 'active' => $routeName === 'simpan-pinjam.loans.monitoring'],
+            ['label' => 'Laporan KONKES', 'route' => 'simpan-pinjam.loans.konkes', 'active' => $routeName === 'simpan-pinjam.loans.konkes'],
+            ['label' => 'Selesai', 'route' => 'simpan-pinjam.loans.completed', 'active' => $routeName === 'simpan-pinjam.loans.completed'],
+        ])
+            ->filter(fn (array $tab) => $this->canAccessLoanSection(match ($tab['route']) {
+                'simpan-pinjam.loans.applications' => 'applications',
+                'simpan-pinjam.loans.approvals' => 'approvals',
+                'simpan-pinjam.loans.disbursement' => 'disbursement',
+                'simpan-pinjam.loans.completed' => 'completed',
+                'simpan-pinjam.loans.konkes' => 'konkes',
+                default => 'monitoring',
+            }))
+            ->values()
+            ->all();
+
+        $loans = Loan::with(['member', 'payments'])
+            ->whereIn('status', ['disbursed', 'active', 'completed'])
+            ->orderByDesc('disbursement_date')
+            ->get()
+            ->map(function (Loan $loan) use ($reportDate) {
+                return $this->buildKonkesLoanRow($loan, $reportDate);
+            });
+
+        $summary = $this->buildKonkesSummary($loans);
+
+        return [
+            'headerTabs' => $headerTabs,
+            'reportDate' => $reportDate,
+            'konkesLoans' => $loans,
+            'konkesSummary' => $summary,
+        ];
+    }
+
+    private function buildKonkesLoanRow(Loan $loan, Carbon $reportDate): array
+    {
+        $disbursementDate = ($loan->disbursement_date ?? $loan->approval_date ?? $loan->created_at)?->copy()->startOfDay();
+        $payments = $loan->payments
+            ->where('payment_date', '<=', $reportDate->toDateString())
+            ->sortBy('payment_date')
+            ->values();
+
+        $totalPaid = (float) $payments->sum('total_paid');
+        $installmentsDue = $disbursementDate ? $this->calculateInstallmentsDueCount($disbursementDate, $reportDate, (int) $loan->tenor_months) : 0;
+        $scheduledAmount = $installmentsDue * (float) $loan->monthly_payment;
+        $arrearsAmount = max(0, $scheduledAmount - $totalPaid);
+        $oldestUnpaidDueDate = $arrearsAmount > 0 && $disbursementDate
+            ? $this->resolveOldestUnpaidDueDate($disbursementDate, $reportDate, (int) $loan->tenor_months, (float) $loan->monthly_payment, $totalPaid)
+            : null;
+        $daysOverdue = $oldestUnpaidDueDate ? $oldestUnpaidDueDate->diffInDays($reportDate) : 0;
+        $quality = $this->classifyKonkesQuality($daysOverdue);
+        $installmentsInArrears = (float) $loan->monthly_payment > 0
+            ? (int) ceil($arrearsAmount / max(1, (float) $loan->monthly_payment))
+            : 0;
+
+        return [
+            'loan' => $loan,
+            'member' => $loan->member,
+            'disbursement_date' => $disbursementDate,
+            'installments_due' => $installmentsDue,
+            'scheduled_amount' => $scheduledAmount,
+            'total_paid' => $totalPaid,
+            'arrears_amount' => $arrearsAmount,
+            'days_overdue' => $daysOverdue,
+            'installments_in_arrears' => $installmentsInArrears,
+            'oldest_unpaid_due_date' => $oldestUnpaidDueDate,
+            'quality' => $quality,
+        ];
+    }
+
+    private function calculateInstallmentsDueCount(Carbon $disbursementDate, Carbon $reportDate, int $tenorMonths): int
+    {
+        $count = 0;
+
+        for ($month = 1; $month <= $tenorMonths; $month++) {
+            $dueDate = $disbursementDate->copy()->addMonthsNoOverflow($month);
+
+            if ($dueDate->lte($reportDate)) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    private function resolveOldestUnpaidDueDate(
+        Carbon $disbursementDate,
+        Carbon $reportDate,
+        int $tenorMonths,
+        float $monthlyPayment,
+        float $totalPaid
+    ): ?Carbon {
+        if ($monthlyPayment <= 0) {
+            return null;
+        }
+
+        for ($month = 1; $month <= $tenorMonths; $month++) {
+            $dueDate = $disbursementDate->copy()->addMonthsNoOverflow($month);
+
+            if ($dueDate->gt($reportDate)) {
+                break;
+            }
+
+            $scheduledUpToDueDate = $month * $monthlyPayment;
+
+            if ($totalPaid + 0.01 < $scheduledUpToDueDate) {
+                return $dueDate;
+            }
+        }
+
+        return null;
+    }
+
+    private function classifyKonkesQuality(int $daysOverdue): array
+    {
+        if ($daysOverdue > 90) {
+            return [
+                'code' => 'macet',
+                'label' => 'Macet',
+                'class' => 'bg-rose-100 text-rose-700',
+                'description' => 'Tunggakan lebih dari 90 hari.',
+            ];
+        }
+
+        if ($daysOverdue > 30) {
+            return [
+                'code' => 'dpk',
+                'label' => 'DPK',
+                'class' => 'bg-amber-100 text-amber-700',
+                'description' => 'Tunggakan 31 sampai 90 hari.',
+            ];
+        }
+
+        return [
+            'code' => 'lancar',
+            'label' => 'Lancar',
+            'class' => 'bg-emerald-100 text-emerald-700',
+            'description' => 'Tunggakan sampai 30 hari.',
+        ];
+    }
+
+    private function buildKonkesSummary(Collection $loans): array
+    {
+        $totalOutstanding = (float) $loans->sum(fn (array $row) => (float) $row['loan']->remaining_balance);
+        $totalArrears = (float) $loans->sum('arrears_amount');
+
+        $groups = collect(['lancar', 'dpk', 'macet'])->mapWithKeys(function (string $code) use ($loans, $totalOutstanding) {
+            $items = $loans->filter(fn (array $row) => $row['quality']['code'] === $code);
+            $outstanding = (float) $items->sum(fn (array $row) => (float) $row['loan']->remaining_balance);
+
+            return [
+                $code => [
+                    'count' => $items->count(),
+                    'outstanding' => $outstanding,
+                    'ratio' => $totalOutstanding > 0 ? ($outstanding / $totalOutstanding) * 100 : 0,
+                ],
+            ];
+        })->all();
+
+        return [
+            'total_loans' => $loans->count(),
+            'total_outstanding' => $totalOutstanding,
+            'total_arrears' => $totalArrears,
+            'lancar' => $groups['lancar'],
+            'dpk' => $groups['dpk'],
+            'macet' => $groups['macet'],
+        ];
     }
 
     private function buildLoanProgressSteps(Loan $loan): array

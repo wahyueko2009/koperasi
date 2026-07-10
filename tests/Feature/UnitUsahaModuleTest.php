@@ -12,6 +12,7 @@ use App\Models\MemberLedger;
 use App\Models\RetailItem;
 use App\Models\RetailTransaction;
 use App\Models\UnitUsahaInventory;
+use App\Models\UnitUsahaInventoryCategory;
 use App\Models\UnitUsahaPurchase;
 use App\Models\UnitUsahaSale;
 use App\Models\UnitUsahaStockOpname;
@@ -26,18 +27,9 @@ class UnitUsahaModuleTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_pos_sale_with_salary_cut_updates_stock_receivable_and_gl(): void
+    public function test_pos_sale_uses_master_price_and_stays_draft_before_daily_posting(): void
     {
         $this->signInAsAdministrator();
-        $this->seedGeneralLedgerDefaults();
-
-        $member = Member::create([
-            'nik' => 'M-900',
-            'name' => 'Anggota POS',
-            'email' => 'pos@example.com',
-            'status' => 'active',
-            'balance_receivable' => 0,
-        ]);
 
         $inventory = UnitUsahaInventory::create([
             'code' => 'INV-001',
@@ -54,15 +46,13 @@ class UnitUsahaModuleTest extends TestCase
         $request = Request::create('/unit-usaha/kasir-pos', 'POST', [
             'sale_number' => 'POS-TEST-001',
             'sale_date' => now()->toDateString(),
-            'category' => 'photocopy',
-            'payment_method' => 'salary_cut',
-            'member_id' => $member->id,
+            'payment_method' => 'cash',
             'items' => [
                 [
                     'item_type' => 'inventory',
                     'item_id' => $inventory->id,
                     'quantity' => 2,
-                    'unit_price' => 65000,
+                    'unit_price' => 1000,
                 ],
             ],
         ]);
@@ -71,24 +61,132 @@ class UnitUsahaModuleTest extends TestCase
 
         $response = app(UnitUsahaController::class)->storePos($request);
 
-        $this->assertSame(route('unit-usaha.pos'), $response->getTargetUrl());
+        $this->assertSame(route('unit-usaha.pos', ['filter_date' => now()->toDateString(), 'show_history' => 1]), $response->getTargetUrl());
 
         $sale = UnitUsahaSale::where('sale_number', 'POS-TEST-001')->firstOrFail();
-        $journal = JournalEntry::findOrFail($sale->journal_entry_id);
 
-        $this->assertTrue((bool) $sale->is_posted);
+        $this->assertFalse((bool) $sale->is_posted);
+        $this->assertSame('draft', $sale->status);
         $this->assertSame(130000.0, (float) $sale->total_amount);
         $this->assertSame(8, (int) $inventory->fresh()->stock);
-        $this->assertSame(130000.0, (float) $member->fresh()->balance_receivable);
-        $this->assertDatabaseHas('member_ledgers', [
-            'member_id' => $member->id,
-            'transaction_type' => 'unit_usaha_sale',
-            'transaction_id' => $sale->id,
+        $this->assertNull($sale->journal_entry_id);
+        $this->assertSame(65000.0, (float) $sale->items()->firstOrFail()->unit_price);
+    }
+
+    public function test_inventory_can_use_master_inventory_category(): void
+    {
+        $this->signInAsAdministrator();
+
+        $categoryRequest = Request::create('/unit-usaha/master-produk-jasa/jenis-barang', 'POST', [
+            'code' => 'JBR-ATK',
+            'name' => 'ATK',
+            'usage_type' => 'barang',
+            'description' => 'Alat tulis kantor',
+            'is_active' => 1,
         ]);
-        $this->assertSame('1101', $journal->debitAccount->code);
-        $this->assertSame('4103', $journal->creditAccount->code);
-        $this->assertSame('unit-usaha', $journal->source_module);
-        $this->assertSame(2, $journal->generalLedgerEntries()->count());
+        $categoryRequest->setLaravelSession(app('session')->driver());
+        $categoryRequest->setUserResolver(fn () => auth()->user());
+        app()->instance('request', $categoryRequest);
+
+        $categoryResponse = app(UnitUsahaController::class)->storeMasterInventoryCategory($categoryRequest);
+        $category = UnitUsahaInventoryCategory::where('code', 'JBR-ATK')->firstOrFail();
+
+        $inventoryRequest = Request::create('/unit-usaha/master-produk-jasa/inventory-atk', 'POST', [
+            'code' => 'INV-CAT-001',
+            'name' => 'Map Plastik',
+            'category_id' => $category->id,
+            'unit' => 'pcs',
+            'minimum_stock' => 5,
+            'purchase_price' => 2000,
+            'selling_price' => 3000,
+            'is_active' => 1,
+        ]);
+        $inventoryRequest->setLaravelSession(app('session')->driver());
+        $inventoryRequest->setUserResolver(fn () => auth()->user());
+        $inventoryRequest->headers->set('referer', route('unit-usaha.master.inventory'));
+        app()->instance('request', $inventoryRequest);
+
+        $inventoryResponse = app(UnitUsahaController::class)->storeMasterInventory($inventoryRequest);
+        $inventory = UnitUsahaInventory::where('code', 'INV-CAT-001')->firstOrFail();
+
+        $this->assertSame(route('unit-usaha.master.inventory-categories'), $categoryResponse->getTargetUrl());
+        $this->assertSame(route('unit-usaha.master.inventory'), $inventoryResponse->getTargetUrl());
+        $this->assertSame($category->id, $inventory->category_id);
+        $this->assertSame('JBR-ATK', $inventory->category);
+    }
+
+    public function test_draft_pos_sale_can_be_updated_before_posting_and_daily_posting_creates_journal(): void
+    {
+        $this->signInAsAdministrator();
+        $this->seedGeneralLedgerDefaults();
+
+        $inventory = UnitUsahaInventory::create([
+            'code' => 'INV-002',
+            'name' => 'Pulpen',
+            'category' => 'ATK',
+            'unit' => 'pcs',
+            'stock' => 20,
+            'minimum_stock' => 2,
+            'purchase_price' => 2000,
+            'selling_price' => 5000,
+            'is_active' => true,
+        ]);
+
+        $createRequest = Request::create('/unit-usaha/kasir-pos', 'POST', [
+            'sale_number' => 'POS-TEST-002',
+            'sale_date' => now()->toDateString(),
+            'payment_method' => 'cash',
+            'items' => [
+                [
+                    'item_type' => 'inventory',
+                    'item_id' => $inventory->id,
+                    'quantity' => 2,
+                    'unit_price' => 0,
+                ],
+            ],
+        ]);
+        $createRequest->setLaravelSession(app('session')->driver());
+        $createRequest->setUserResolver(fn () => auth()->user());
+
+        app(UnitUsahaController::class)->storePos($createRequest);
+
+        $sale = UnitUsahaSale::where('sale_number', 'POS-TEST-002')->firstOrFail();
+
+        $updateRequest = Request::create('/unit-usaha/kasir-pos/' . $sale->id, 'PUT', [
+            'sale_date' => now()->toDateString(),
+            'payment_method' => 'cash',
+            'items' => [
+                [
+                    'item_type' => 'inventory',
+                    'item_id' => $inventory->id,
+                    'quantity' => 3,
+                    'unit_price' => 1,
+                ],
+            ],
+        ]);
+        $updateRequest->setLaravelSession(app('session')->driver());
+        $updateRequest->setUserResolver(fn () => auth()->user());
+
+        $response = app(UnitUsahaController::class)->updatePos($updateRequest, $sale);
+
+        $this->assertSame(route('unit-usaha.pos', ['filter_date' => now()->toDateString(), 'show_history' => 1]), $response->getTargetUrl());
+        $this->assertSame(17, (int) $inventory->fresh()->stock);
+        $this->assertSame(15000.0, (float) $sale->fresh()->total_amount);
+
+        $postRequest = Request::create('/unit-usaha/kasir-pos/posting-harian', 'POST', [
+            'sale_date' => now()->toDateString(),
+        ]);
+        $postRequest->setLaravelSession(app('session')->driver());
+        $postRequest->setUserResolver(fn () => auth()->user());
+
+        $postResponse = app(UnitUsahaController::class)->postDailySales($postRequest);
+        $journal = JournalEntry::findOrFail($sale->fresh()->journal_entry_id);
+
+        $this->assertSame(route('unit-usaha.pos', ['filter_date' => now()->toDateString(), 'show_history' => 1]), $postResponse->getTargetUrl());
+        $this->assertTrue((bool) $sale->fresh()->is_posted);
+        $this->assertSame('posted', $sale->fresh()->status);
+        $this->assertSame('1001', $journal->debitAccount->code);
+        $this->assertSame('4102', $journal->creditAccount->code);
     }
 
     public function test_retail_service_updates_retail_stock_and_projects_to_unit_usaha_sales(): void

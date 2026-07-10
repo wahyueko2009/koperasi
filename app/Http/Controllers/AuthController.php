@@ -41,7 +41,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        $user = auth()->user()->loadMissing('official.member');
+        $user = auth()->user()->loadMissing('member');
 
         if (! (bool) $user?->is_active) {
             Auth::logout();
@@ -56,8 +56,8 @@ class AuthController extends Controller
         }
 
         $context = $credentials['login_context'];
-        $hasMemberContext = (bool) ($user->member_id || $user->official?->member_id);
-        $hasOfficialContext = (bool) $user->official_id;
+        $hasMemberContext = (bool) $user->member_id;
+        $hasPengurusContext = (bool) $user && ! $user->isMember();
 
         if ($context === 'anggota' && ! $hasMemberContext) {
             Auth::logout();
@@ -71,14 +71,14 @@ class AuthController extends Controller
                 ->onlyInput('login', 'login_context');
         }
 
-        if ($context === 'pengurus' && ! $hasOfficialContext) {
+        if ($context === 'pengurus' && ! $hasPengurusContext) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
             return back()
                 ->withErrors([
-                    'login' => 'Akun ini belum terdaftar sebagai pengurus koperasi.',
+                    'login' => 'Akun ini tidak memiliki akses ke area pengurus.',
                 ])
                 ->onlyInput('login', 'login_context');
         }

@@ -43,13 +43,18 @@
 
                     <div class="grid gap-4 md:grid-cols-2">
                         <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">Kategori</label>
-                            <input
-                                name="category"
-                                value="{{ old('category') }}"
+                            <label class="mb-2 block text-sm font-semibold text-slate-700">Jenis Jasa</label>
+                            <select
+                                name="category_id"
                                 class="w-full rounded-2xl border border-slate-300 px-4 py-3"
-                                placeholder="Fotokopi / Print / Jilid"
                             >
+                                <option value="">Pilih jenis jasa</option>
+                                @foreach ($serviceCategories as $category)
+                                    <option value="{{ $category->id }}" @selected((string) old('category_id') === (string) $category->id)>
+                                        {{ $category->code }} - {{ $category->name }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-slate-700">Satuan</label>
@@ -67,9 +72,10 @@
                         <input
                             name="price"
                             value="{{ old('price') }}"
-                            type="number"
-                            min="0"
-                            step="0.01"
+                            type="text"
+                            inputmode="numeric"
+                            autocomplete="off"
+                            data-currency-input
                             class="w-full rounded-2xl border border-slate-300 px-4 py-3"
                             placeholder="1500"
                         >
@@ -194,12 +200,34 @@
             const modal = document.getElementById('service-list-modal');
             const openButton = document.getElementById('open-service-list');
             const closeButton = document.getElementById('close-service-list');
+            const currencyInputs = document.querySelectorAll('[data-currency-input]');
+
+            const normalizeCurrencyValue = (value) => String(value ?? '').replace(/[^\d]/g, '');
+            const formatCurrencyValue = (value) => {
+                const digits = normalizeCurrencyValue(value);
+                return digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+            };
 
             const toggleModal = (show) => {
                 if (!modal) return;
                 modal.classList.toggle('hidden', !show);
                 document.body.classList.toggle('overflow-hidden', show);
             };
+
+            currencyInputs.forEach((input) => {
+                input.value = formatCurrencyValue(input.value);
+                input.addEventListener('input', () => {
+                    input.value = formatCurrencyValue(input.value);
+                });
+            });
+
+            document.querySelectorAll('form').forEach((form) => {
+                form.addEventListener('submit', () => {
+                    form.querySelectorAll('[data-currency-input]').forEach((input) => {
+                        input.value = normalizeCurrencyValue(input.value);
+                    });
+                });
+            });
 
             openButton?.addEventListener('click', () => toggleModal(true));
             closeButton?.addEventListener('click', () => toggleModal(false));

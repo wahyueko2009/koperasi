@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\RetailItem;
 use App\Models\UnitUsahaInventory;
+use App\Models\UnitUsahaInventoryCategory;
+use Illuminate\Support\Str;
 
 class RetailInventoryBridgeService
 {
@@ -17,10 +19,12 @@ class RetailInventoryBridgeService
     public function syncInventoryFromRetailItem(RetailItem $retailItem): UnitUsahaInventory
     {
         $inventory = $this->resolveInventory($retailItem);
+        $category = $this->resolveInventoryCategory((string) $retailItem->category);
 
         $inventory->update([
             'name' => $retailItem->name,
-            'category' => strtoupper((string) $retailItem->category),
+            'category_id' => $category?->id,
+            'category' => $category?->name ?: strtoupper((string) $retailItem->category),
             'unit' => $retailItem->unit,
             'stock' => (int) $retailItem->stock,
             'selling_price' => (float) $retailItem->price,
@@ -41,7 +45,7 @@ class RetailInventoryBridgeService
                 $item->update([
                     'name' => $inventory->name,
                     'unit' => $inventory->unit,
-                    'category' => strtolower((string) $inventory->category),
+                    'category' => strtolower((string) ($inventory->categoryRelation?->name ?: $inventory->category)),
                     'stock' => (int) $inventory->stock,
                     'price' => (float) $inventory->selling_price,
                     'description' => $inventory->description,
@@ -52,6 +56,8 @@ class RetailInventoryBridgeService
 
     private function resolveInventory(RetailItem $retailItem): UnitUsahaInventory
     {
+        $category = $this->resolveInventoryCategory((string) $retailItem->category);
+
         if ($retailItem->linked_inventory_id) {
             $inventory = UnitUsahaInventory::query()->find($retailItem->linked_inventory_id);
             if ($inventory) {
@@ -63,7 +69,8 @@ class RetailInventoryBridgeService
             ['code' => $this->inventoryCode($retailItem)],
             [
                 'name' => $retailItem->name,
-                'category' => strtoupper((string) $retailItem->category),
+                'category_id' => $category?->id,
+                'category' => $category?->name ?: strtoupper((string) $retailItem->category),
                 'unit' => $retailItem->unit,
                 'stock' => (int) $retailItem->stock,
                 'minimum_stock' => 0,
@@ -86,5 +93,28 @@ class RetailInventoryBridgeService
         $sku = strtoupper(trim((string) $retailItem->sku));
 
         return 'RTL-' . ($sku !== '' ? $sku : str_pad((string) $retailItem->id, 6, '0', STR_PAD_LEFT));
+    }
+
+    private function resolveInventoryCategory(string $name): ?UnitUsahaInventoryCategory
+    {
+        $normalized = trim($name);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $displayName = Str::title(Str::lower($normalized));
+        $slug = strtoupper(Str::slug($displayName, ''));
+        $code = 'JBR-' . ($slug !== '' ? $slug : 'AUTO');
+        $usageType = str_contains(strtolower($normalized), 'photo') ? 'jasa' : 'barang';
+
+        return UnitUsahaInventoryCategory::query()->firstOrCreate(
+            ['code' => $code],
+            [
+                'name' => $displayName,
+                'usage_type' => $usageType,
+                'description' => 'Otomatis dibentuk dari sinkronisasi retail item.',
+                'is_active' => true,
+            ]
+        );
     }
 }
